@@ -1,24 +1,34 @@
 import express from "express";
+import axios from "axios";
 
 const router = express.Router();
 
-/**
- * GET /api/trailer/:title
- * Example: /api/trailer/3 idiots
- */
-router.get("/:title", async (req, res) => {
-  const { title } = req.params;
+const TMDB_API_KEY = process.env.TMDB_API_KEY;
+const BASE_URL = "https://api.themoviedb.org/3";
 
-  // 🔁 Fallback trailer search (YouTube search link)
-  const query = encodeURIComponent(`${title} official trailer`);
-  const youtubeSearchUrl = `https://www.youtube.com/results?search_query=${query}`;
+// 🎞️ Movie Trailer
+router.get("/movie/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
 
-  res.json({
-    title,
-    trailerType: "youtube-search",
-    trailerUrl: youtubeSearchUrl,
-    note: "YouTube API not used (fallback mode)",
-  });
+    const { data } = await axios.get(
+      `${BASE_URL}/movie/${id}/videos`,
+      {
+        params: {
+          api_key: TMDB_API_KEY,
+        },
+      }
+    );
+
+    // Only YouTube trailers
+    const trailers = data.results.filter(
+      (v) => v.site === "YouTube" && v.type === "Trailer"
+    );
+
+    res.json(trailers);
+  } catch (error) {
+    res.status(500).json({ error: "Trailer not found" });
+  }
 });
 
 export default router;
