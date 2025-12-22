@@ -10,7 +10,7 @@ if (!GEMINI_API_KEY) {
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // Model name
-const MODEL_NAME = 'gemini-1.0-pro';
+const MODEL_NAME = 'gemini-1.5-flash';
 
 function buildMovieReviewPrompt(movie, credits, providers, recommendations) {
   const title = movie.title || movie.name || 'Unknown Title';
