@@ -12,7 +12,7 @@ const {
 
 // GET /api/home
 // হোমপেজে চারটা সেকশন: Trending, Web Series, Top Rated, Upcoming
-router.get('/', async (req, res) => {
+router.get('/home', async (req, res) => {
   try {
     const [trending, webSeries, topRated, upcoming] = await Promise.all([
       getTrendingMovies(),
