@@ -2,16 +2,14 @@
 const express = require('express');
 const cors = require('cors');
 const cron = require('node-cron');
-const path = require('path');
-require('dotenv').config(); // local dev এর জন্য, Render এ env UI থেকে আসবে
+require('dotenv').config();
 
 const app = express();
 
-// Basic middlewares
-app.use(cors()); // Public API হিসেবে সব origin allow করা আছে
+app.use(cors());
 app.use(express.json());
 
-// Simple health check
+// Health check
 app.get('/', (req, res) => {
   res.json({ status: 'ok', message: 'Indian Movie AI backend is running' });
 });
@@ -20,10 +18,15 @@ app.get('/', (req, res) => {
 const homeRouter = require('./routes/home');
 const movieRouter = require('./routes/movie');
 
-app.use('/api/home', homeRouter);
-app.use('/api/movie', movieRouter);
+// ❌ আগেরটা
+// app.use('/api/home', homeRouter);
+// app.use('/api/movie', movieRouter);
 
-// 24 ঘন্টা অন্তর data warmup (optional, future use)
+// ✅ নতুনটা (FIX)
+app.use('/api', homeRouter);
+app.use('/api', movieRouter);
+
+// Cron (unchanged)
 const {
   getTrendingMovies,
   getPopularWebSeries,
@@ -32,7 +35,6 @@ const {
 } = require('./services/tmdbService');
 
 cron.schedule('0 0 * * *', async () => {
-  // Every day at midnight (server time) [web:182][web:181]
   try {
     console.log('Cron: warming up TMDB caches...');
     await Promise.all([
@@ -47,7 +49,7 @@ cron.schedule('0 0 * * *', async () => {
   }
 });
 
-// Port config (Render / local)
+// Port
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
