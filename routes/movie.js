@@ -1,16 +1,18 @@
-import express from "express";
-import fetch from "node-fetch";
-
+const express = require("express");
 const router = express.Router();
+
+// Node 18+ has global fetch
+const fetch = global.fetch;
 
 router.get("/movie/:id/blog", async (req, res) => {
   const movieId = req.params.id;
 
   try {
-    // 1️⃣ TMDB movie details
+    // 1️⃣ Fetch movie from TMDB
     const tmdbRes = await fetch(
       `https://api.themoviedb.org/3/movie/${movieId}?api_key=${process.env.TMDB_API_KEY}&language=en-US`
     );
+
     const movie = await tmdbRes.json();
 
     if (!movie || movie.success === false) {
@@ -40,9 +42,9 @@ Tone: cinematic, professional, SEO-friendly.
 Do not mention AI.
 `;
 
-    // 3️⃣ Gemini API call
+    // 3️⃣ Gemini API call (SAFE MODEL)
     const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -69,4 +71,4 @@ Do not mention AI.
   }
 });
 
-export default router;
+module.exports = router;
