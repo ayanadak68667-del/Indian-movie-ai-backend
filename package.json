@@ -1,18 +1,16 @@
 {
   "name": "indian-movie-ai-backend",
-  "version": "1.0.2",
-  "description": "Backend for Filmi Bharat (TMDB + YouTube + Gemini AI)",
-  "private": true,
-  "type": "commonjs",
+  "version": "1.0.0",
+  "description": "Backend for Filmi Bharat (TMDB + YouTube + Gemini)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "engines": {
-    "node": "18.x"
+    "node": ">=18"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.24.0",
+    "@google/generative-ai": "^0.21.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
