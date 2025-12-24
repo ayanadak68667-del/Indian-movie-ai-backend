@@ -172,5 +172,40 @@ Do not mention AI.
     res.status(500).json({ error: "AI blog generation failed" });
   }
 });
+// 🔹 Movie trailer route – returns YouTube embed URL
+router.get('/movie/:id/trailer', async (req, res) => {
+  const movieId = req.params.id;
+
+  try {
+    const apiKey = process.env.TMDB_API_KEY;
+    const baseUrl = 'https://api.themoviedb.org/3';
+
+    const videosRes = await fetch(
+      `${baseUrl}/movie/${movieId}/videos?api_key=${apiKey}&language=en-US`
+    );
+    const videos = await videosRes.json();
+
+    const trailer =
+      (videos.results || []).find(
+        (v) =>
+          v.site === 'YouTube' &&
+          v.type === 'Trailer'
+      ) || null;
+
+    if (!trailer) {
+      return res.json({ movie_id: movieId, trailerUrl: null });
+    }
+
+    const trailerUrl = `https://www.youtube.com/embed/${trailer.key}`;
+
+    res.json({
+      movie_id: movieId,
+      trailerUrl
+    });
+  } catch (err) {
+    console.error('TRAILER ERROR:', err);
+    res.status(500).json({ error: 'Failed to fetch trailer' });
+  }
+});
 
 module.exports = router;
