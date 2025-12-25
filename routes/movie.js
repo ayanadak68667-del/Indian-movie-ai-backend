@@ -6,7 +6,7 @@ const fetch = global.fetch;
 const TMDB_KEY = process.env.TMDB_API_KEY;
 
 /* =========================
-   MOVIE DETAILS
+   MOVIE DETAILS – CINEMATIC PAYLOAD
 ========================= */
 router.get("/movie/:id", async (req, res) => {
   const movieId = req.params.id;
@@ -17,9 +17,9 @@ router.get("/movie/:id", async (req, res) => {
     const [detailsRes, creditsRes, providersRes, recsRes] =
       await Promise.all([
         fetch(`${base}/movie/${movieId}?api_key=${TMDB_KEY}&language=en-US`),
-        fetch(`${base}/movie/${movieId}/credits?api_key=${TMDB_KEY}`),
+        fetch(`${base}/movie/${movieId}/credits?api_key=${TMDB_KEY}&language=en-US`),
         fetch(`${base}/movie/${movieId}/watch/providers?api_key=${TMDB_KEY}`),
-        fetch(`${base}/movie/${movieId}/recommendations?api_key=${TMDB_KEY}`)
+        fetch(`${base}/movie/${movieId}/recommendations?api_key=${TMDB_KEY}&language=en-US`)
       ]);
 
     const details = await detailsRes.json();
@@ -31,7 +31,8 @@ router.get("/movie/:id", async (req, res) => {
       return res.status(404).json({ error: "Movie not found" });
     }
 
-    const cast = (credits.cast || []).slice(0, 12).map(p => ({
+    // CAST
+    const cast = (credits.cast || []).slice(0, 12).map((p) => ({
       id: p.id,
       name: p.name,
       character: p.character,
@@ -40,23 +41,59 @@ router.get("/movie/:id", async (req, res) => {
         : null
     }));
 
+    // CREW – Director / Writer / Producer
+    const crew = credits.crew || [];
+    const directors = crew
+      .filter((c) => c.job === "Director")
+      .map((c) => c.name);
+
+    const writers = crew
+      .filter((c) =>
+        ["Writer", "Screenplay", "Story"].includes(c.job)
+      )
+      .map((c) => c.name);
+
+    const producers = crew
+      .filter((c) =>
+        ["Producer", "Executive Producer"].includes(c.job)
+      )
+      .map((c) => c.name);
+
+    // STREAMING (INDIA)
     const inProviders = providers.results?.IN || {};
     const flatrate = inProviders.flatrate || [];
-
-    const streamingLinks = flatrate.map(p => ({
+    const streamingLinks = flatrate.map((p) => ({
       platform: p.provider_name,
       logoUrl: p.logo_path
         ? `https://image.tmdb.org/t/p/w92${p.logo_path}`
         : null
     }));
 
-    const recommendations = (recs.results || []).slice(0, 20).map(r => ({
-      id: r.id,
-      title: r.title,
-      posterUrl: r.poster_path
-        ? `https://image.tmdb.org/t/p/w342${r.poster_path}`
-        : null
-    }));
+    // RECOMMENDATIONS
+    const recommendations = (recs.results || [])
+      .slice(0, 20)
+      .map((r) => ({
+        id: r.id,
+        title: r.title,
+        posterUrl: r.poster_path
+          ? `https://image.tmdb.org/t/p/w342${r.poster_path}`
+          : null
+      }));
+
+    // DEMO AI SUMMARY
+    const aiSummary =
+      "A cinematic blend of mass entertainment and social commentary, delivering powerful performances, emotional depth, and high-octane action sequences.";
+
+    // BUSINESS DATA (demo logic)
+    const budgetCrore =
+      details.budget && details.budget > 0
+        ? Math.round(details.budget / 10000000)
+        : 300;
+
+    const boxOfficeCrore =
+      details.revenue && details.revenue > 0
+        ? Math.round(details.revenue / 10000000)
+        : 1160;
 
     res.json({
       id: details.id,
@@ -65,13 +102,23 @@ router.get("/movie/:id", async (req, res) => {
       releaseDate: details.release_date,
       runtime: details.runtime,
       voteAverage: details.vote_average,
-      genres: details.genres.map(g => g.name),
+      genres: (details.genres || []).map((g) => g.name),
+
       posterUrl: details.poster_path
         ? `https://image.tmdb.org/t/p/w500${details.poster_path}`
         : null,
       backdropUrl: details.backdrop_path
         ? `https://image.tmdb.org/t/p/w780${details.backdrop_path}`
         : null,
+
+      // CINEMATIC DASHBOARD DATA
+      aiSummary,
+      budget: budgetCrore,
+      boxOffice: boxOfficeCrore,
+      directors,
+      writers,
+      producers,
+
       cast,
       streamingLinks,
       recommendations
@@ -83,17 +130,17 @@ router.get("/movie/:id", async (req, res) => {
 });
 
 /* =========================
-   TRAILER (SEPARATE ROUTE)
+   TRAILER ROUTE
 ========================= */
 router.get("/movie/:id/trailer", async (req, res) => {
   const movieId = req.params.id;
 
   try {
-    const url = `https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${TMDB_KEY}`;
-    const data = await fetch(url).then(r => r.json());
+    const url = `https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${TMDB_KEY}&language=en-US`;
+    const data = await fetch(url).then((r) => r.json());
 
     const trailer = (data.results || []).find(
-      v => v.site === "YouTube" && v.type === "Trailer"
+      (v) => v.site === "YouTube" && v.type === "Trailer"
     );
 
     res.json({
@@ -131,7 +178,7 @@ Write a detailed, human-like movie review article in English.
 Movie title: ${movie.title}
 Release year: ${movie.release_date}
 Overview: ${movie.overview}
-Genres: ${movie.genres?.map(g => g.name).join(", ")}
+Genres: ${movie.genres?.map((g) => g.name).join(", ")}
 
 Use these sections exactly:
 1. Synopsis
@@ -170,41 +217,6 @@ Do not mention AI.
   } catch (err) {
     console.error("AI BLOG ERROR:", err);
     res.status(500).json({ error: "AI blog generation failed" });
-  }
-});
-// 🔹 Movie trailer route – returns YouTube embed URL
-router.get('/movie/:id/trailer', async (req, res) => {
-  const movieId = req.params.id;
-
-  try {
-    const apiKey = process.env.TMDB_API_KEY;
-    const baseUrl = 'https://api.themoviedb.org/3';
-
-    const videosRes = await fetch(
-      `${baseUrl}/movie/${movieId}/videos?api_key=${apiKey}&language=en-US`
-    );
-    const videos = await videosRes.json();
-
-    const trailer =
-      (videos.results || []).find(
-        (v) =>
-          v.site === 'YouTube' &&
-          v.type === 'Trailer'
-      ) || null;
-
-    if (!trailer) {
-      return res.json({ movie_id: movieId, trailerUrl: null });
-    }
-
-    const trailerUrl = `https://www.youtube.com/embed/${trailer.key}`;
-
-    res.json({
-      movie_id: movieId,
-      trailerUrl
-    });
-  } catch (err) {
-    console.error('TRAILER ERROR:', err);
-    res.status(500).json({ error: 'Failed to fetch trailer' });
   }
 });
 
