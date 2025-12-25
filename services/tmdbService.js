@@ -6,6 +6,9 @@ const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 const REGION_IN = 'IN';
 const LANGUAGE_EN = 'en-US';
 
+// ভবিষ্যতে চাইলে আলাদা আলাদা language filter অ্যাড করতে পারো
+const INDIAN_LANGS = ['hi', 'te', 'ta', 'ml', 'kn', 'bn'];
+
 if (!TMDB_API_KEY) {
   console.error('TMDB_API_KEY is missing in environment variables');
 }
@@ -16,7 +19,6 @@ async function tmdbRequest(path, params = {}) {
   url.searchParams.set('api_key', TMDB_API_KEY);
   url.searchParams.set('language', LANGUAGE_EN);
 
-  // extra query params
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null) {
       url.searchParams.set(key, value);
@@ -32,36 +34,53 @@ async function tmdbRequest(path, params = {}) {
   return res.json();
 }
 
-/** 1. Home page lists */
+/** 1. Home page lists – PURE INDIAN FOCUS */
 
-// Trending Indian movies (day)
+// Trending Indian movies (discover + origin_country=IN)
 async function getTrendingMovies() {
-  const data = await tmdbRequest('/trending/movie/day', {
-    region: REGION_IN
+  const data = await tmdbRequest('/discover/movie', {
+    with_origin_country: REGION_IN,
+    sort_by: 'popularity.desc',
+    'vote_count.gte': 50,
+    include_adult: false,
+    page: 1
   });
   return data.results || [];
 }
 
 // Popular Indian web series
 async function getPopularWebSeries() {
-  const data = await tmdbRequest('/tv/popular', {
-    region: REGION_IN
+  const data = await tmdbRequest('/discover/tv', {
+    with_origin_country: REGION_IN,
+    sort_by: 'popularity.desc',
+    'vote_count.gte': 50,
+    include_adult: false,
+    page: 1
   });
   return data.results || [];
 }
 
-// Top IMDb‑style rated movies (high vote_average + vote_count)
+// Top rated Indian movies (IMDB‑style feel)
 async function getTopRatedMovies() {
-  const data = await tmdbRequest('/movie/top_rated', {
-    region: REGION_IN
+  const data = await tmdbRequest('/discover/movie', {
+    with_origin_country: REGION_IN,
+    sort_by: 'vote_average.desc',
+    'vote_count.gte': 200,
+    include_adult: false,
+    page: 1
   });
   return data.results || [];
 }
 
-// Upcoming Indian movies
+// Upcoming Indian movies (release date based)
 async function getUpcomingMovies() {
-  const data = await tmdbRequest('/movie/upcoming', {
-    region: REGION_IN
+  const today = new Date().toISOString().slice(0, 10);
+  const data = await tmdbRequest('/discover/movie', {
+    with_origin_country: REGION_IN,
+    'primary_release_date.gte': today,
+    sort_by: 'primary_release_date.asc',
+    include_adult: false,
+    page: 1
   });
   return data.results || [];
 }
@@ -83,14 +102,14 @@ async function getMovieCredits(movieId) {
 
 async function getMovieWatchProviders(movieId) {
   const data = await tmdbRequest(`/movie/${movieId}/watch/providers`);
-  // we care mostly about region IN
   return data.results ? data.results[REGION_IN] || null : null;
 }
 
 async function getMovieRecommendations(movieId) {
   const data = await tmdbRequest(`/movie/${movieId}/recommendations`, {
-    region: REGION_IN
+    with_origin_country: REGION_IN
   });
+  // recommendation লিস্টেও আগে Indian গুলোকে অগ্রাধিকার দিতে চাইলে এখানেও ফিল্টার করতে পারো
   return data.results || [];
 }
 
