@@ -6,6 +6,19 @@ const fetch = global.fetch;
 const TMDB_KEY = process.env.TMDB_API_KEY;
 
 /* =========================
+   HELPER: FORMAT USD AMOUNT
+========================= */
+function formatUsdAmount(amount) {
+  if (!amount || amount <= 0) return null;
+
+  if (amount >= 1_000_000_000) {
+    return `$${(amount / 1_000_000_000).toFixed(1)}B`;
+  }
+
+  return `$${(amount / 1_000_000).toFixed(1)}M`;
+}
+
+/* =========================
    MOVIE DETAILS – CINEMATIC PAYLOAD
 ========================= */
 router.get("/movie/:id", async (req, res) => {
@@ -84,16 +97,9 @@ router.get("/movie/:id", async (req, res) => {
     const aiSummary =
       "A cinematic blend of mass entertainment and social commentary, delivering powerful performances, emotional depth, and high-octane action sequences.";
 
-    // BUSINESS DATA (demo logic)
-    const budgetCrore =
-      details.budget && details.budget > 0
-        ? Math.round(details.budget / 10000000)
-        : 300;
-
-    const boxOfficeCrore =
-      details.revenue && details.revenue > 0
-        ? Math.round(details.revenue / 10000000)
-        : 1160;
+    // FORMAT BUDGET / BOX OFFICE (USD)
+    const budgetDisplay = formatUsdAmount(details.budget);
+    const boxOfficeDisplay = formatUsdAmount(details.revenue);
 
     res.json({
       id: details.id,
@@ -111,10 +117,9 @@ router.get("/movie/:id", async (req, res) => {
         ? `https://image.tmdb.org/t/p/w780${details.backdrop_path}`
         : null,
 
-      // CINEMATIC DASHBOARD DATA
       aiSummary,
-      budget: budgetCrore,
-      boxOffice: boxOfficeCrore,
+      budgetDisplay,      // 👈 formatted string
+      boxOfficeDisplay,   // 👈 formatted string
       directors,
       writers,
       producers,
