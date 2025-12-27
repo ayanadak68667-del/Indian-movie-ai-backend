@@ -5,6 +5,9 @@ const router = express.Router();
 const fetch = global.fetch;
 const TMDB_KEY = process.env.TMDB_API_KEY;
 
+// 🔹 YouTube Songs Service
+const { getSongsPlaylist } = require("../services/youtubeSongsService");
+
 /* =========================
    HELPER: FORMAT USD AMOUNT
 ========================= */
@@ -44,7 +47,7 @@ router.get("/movie/:id", async (req, res) => {
       return res.status(404).json({ error: "Movie not found" });
     }
 
-    // CAST
+    /* ---------- CAST ---------- */
     const cast = (credits.cast || []).slice(0, 12).map((p) => ({
       id: p.id,
       name: p.name,
@@ -54,8 +57,9 @@ router.get("/movie/:id", async (req, res) => {
         : null
     }));
 
-    // CREW – Director / Writer / Producer
+    /* ---------- CREW ---------- */
     const crew = credits.crew || [];
+
     const directors = crew
       .filter((c) => c.job === "Director")
       .map((c) => c.name);
@@ -72,9 +76,10 @@ router.get("/movie/:id", async (req, res) => {
       )
       .map((c) => c.name);
 
-    // STREAMING (INDIA)
+    /* ---------- STREAMING (INDIA) ---------- */
     const inProviders = providers.results?.IN || {};
     const flatrate = inProviders.flatrate || [];
+
     const streamingLinks = flatrate.map((p) => ({
       platform: p.provider_name,
       logoUrl: p.logo_path
@@ -82,7 +87,7 @@ router.get("/movie/:id", async (req, res) => {
         : null
     }));
 
-    // RECOMMENDATIONS
+    /* ---------- RECOMMENDATIONS ---------- */
     const recommendations = (recs.results || [])
       .slice(0, 20)
       .map((r) => ({
@@ -93,14 +98,31 @@ router.get("/movie/:id", async (req, res) => {
           : null
       }));
 
-    // DEMO AI SUMMARY
+    /* ---------- AI SUMMARY (DEMO) ---------- */
     const aiSummary =
       "A cinematic blend of mass entertainment and social commentary, delivering powerful performances, emotional depth, and high-octane action sequences.";
 
-    // FORMAT BUDGET / BOX OFFICE (USD)
+    /* ---------- BUDGET / BOX OFFICE ---------- */
     const budgetDisplay = formatUsdAmount(details.budget);
     const boxOfficeDisplay = formatUsdAmount(details.revenue);
 
+    /* ---------- 🎵 YOUTUBE SONGS PLAYLIST ---------- */
+    let songsPlaylistUrl = null;
+    try {
+      const year = details.release_date
+        ? details.release_date.slice(0, 4)
+        : null;
+
+      const playlist = await getSongsPlaylist(details.title, year);
+      if (playlist && playlist.url) {
+        songsPlaylistUrl = playlist.url;
+      }
+    } catch (e) {
+      console.error("SONGS PLAYLIST ERROR:", e.message);
+      songsPlaylistUrl = null;
+    }
+
+    /* ---------- RESPONSE ---------- */
     res.json({
       id: details.id,
       title: details.title,
@@ -118,11 +140,13 @@ router.get("/movie/:id", async (req, res) => {
         : null,
 
       aiSummary,
-      budgetDisplay,      // 👈 formatted string
-      boxOfficeDisplay,   // 👈 formatted string
+      budgetDisplay,
+      boxOfficeDisplay,
       directors,
       writers,
       producers,
+
+      songsPlaylistUrl, // 🔥 NEW FIELD
 
       cast,
       streamingLinks,
