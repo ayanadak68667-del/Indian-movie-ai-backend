@@ -1,8 +1,12 @@
 // server.js
+const connectDB = require("./config/db"); // Database connection import
 const express = require('express');
 const cors = require('cors');
 const cron = require('node-cron');
 require('dotenv').config();
+
+// Connect to Database (Express start হওয়ার আগেই)
+connectDB();
 
 const app = express();
 
@@ -18,15 +22,11 @@ app.get('/', (req, res) => {
 const homeRouter = require('./routes/home');
 const movieRouter = require('./routes/movie');
 
-// ❌ আগেরটা
-// app.use('/api/home', homeRouter);
-// app.use('/api/movie', movieRouter);
-
-// ✅ নতুনটা (FIX)
+// API Routes
 app.use('/api', homeRouter);
 app.use('/api', movieRouter);
 
-// Cron (unchanged)
+// Cron Jobs
 const {
   getTrendingMovies,
   getPopularWebSeries,
@@ -49,7 +49,7 @@ cron.schedule('0 0 * * *', async () => {
   }
 });
 
-// Port
+// Port configuration
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
