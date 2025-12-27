@@ -1,32 +1,45 @@
 // server.js
-const connectDB = require("./config/db"); // Database connection import
 const express = require('express');
 const cors = require('cors');
 const cron = require('node-cron');
-require('dotenv').config();
-
-// Connect to Database (Express start হওয়ার আগেই)
-connectDB();
+const mongoose = require('mongoose'); // ✅ ADD
+require('dotenv').config(); // Render env থাকলেও এটা সমস্যা করে না
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-// Health check
+/* =========================
+   ✅ MongoDB Connection
+========================= */
+mongoose
+  .connect(process.env.MONGODB_URI)
+  .then(() => console.log('MongoDB connected'))
+  .catch(err => console.error('MongoDB error:', err.message));
+
+/* =========================
+   Health check
+========================= */
 app.get('/', (req, res) => {
-  res.json({ status: 'ok', message: 'Indian Movie AI backend is running' });
+  res.json({
+    status: 'ok',
+    message: 'Indian Movie AI backend is running'
+  });
 });
 
-// Routes
+/* =========================
+   Routes
+========================= */
 const homeRouter = require('./routes/home');
 const movieRouter = require('./routes/movie');
 
-// API Routes
 app.use('/api', homeRouter);
 app.use('/api', movieRouter);
 
-// Cron Jobs
+/* =========================
+   Cron Jobs (UNCHANGED)
+========================= */
 const {
   getTrendingMovies,
   getPopularWebSeries,
@@ -49,7 +62,9 @@ cron.schedule('0 0 * * *', async () => {
   }
 });
 
-// Port configuration
+/* =========================
+   Server start
+========================= */
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
