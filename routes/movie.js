@@ -1,11 +1,13 @@
-// routes/movie.js
 const express = require("express");
 const router = express.Router();
 
 const fetch = global.fetch;
 const TMDB_KEY = process.env.TMDB_API_KEY;
 
-// 🔹 YouTube Songs Service
+// 🔹 Mongo Model (NEW)
+const MovieExtras = require("../models/MovieExtras");
+
+// 🔹 YouTube Songs Service (UNCHANGED)
 const { getSongsPlaylist } = require("../services/youtubeSongsService");
 
 /* =========================
@@ -106,19 +108,40 @@ router.get("/movie/:id", async (req, res) => {
     const budgetDisplay = formatUsdAmount(details.budget);
     const boxOfficeDisplay = formatUsdAmount(details.revenue);
 
-    /* ---------- 🎵 YOUTUBE SONGS PLAYLIST ---------- */
+    /* =================================================
+       🎵 SONGS PLAYLIST – MongoDB CACHE + YOUTUBE FALLBACK
+    ================================================= */
     let songsPlaylistUrl = null;
-    try {
-      const year = details.release_date
-        ? details.release_date.slice(0, 4)
-        : null;
 
-      const playlist = await getSongsPlaylist(details.title, year);
-      if (playlist && playlist.url) {
-        songsPlaylistUrl = playlist.url;
+    try {
+      // 1️⃣ MongoDB cache check
+      const existing = await MovieExtras.findOne({
+        tmdbId: details.id
+      }).lean();
+
+      if (existing && existing.songsPlaylistUrl) {
+        songsPlaylistUrl = existing.songsPlaylistUrl;
+      } else {
+        // 2️⃣ YouTube fallback
+        const year = details.release_date
+          ? details.release_date.slice(0, 4)
+          : null;
+
+        const playlist = await getSongsPlaylist(details.title, year);
+
+        if (playlist && playlist.url) {
+          songsPlaylistUrl = playlist.url;
+
+          // 3️⃣ MongoDB upsert
+          await MovieExtras.findOneAndUpdate(
+            { tmdbId: details.id },
+            { tmdbId: details.id, songsPlaylistUrl },
+            { upsert: true, new: true }
+          );
+        }
       }
-    } catch (e) {
-      console.error("SONGS PLAYLIST ERROR:", e.message);
+    } catch (err) {
+      console.error("Songs playlist caching error:", err.message);
       songsPlaylistUrl = null;
     }
 
@@ -146,7 +169,7 @@ router.get("/movie/:id", async (req, res) => {
       writers,
       producers,
 
-      songsPlaylistUrl, // 🔥 NEW FIELD
+      songsPlaylistUrl, // ✅ CACHED FIELD
 
       cast,
       streamingLinks,
