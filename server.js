@@ -11,12 +11,28 @@ app.use(cors());
 app.use(express.json());
 
 /* =========================
-   ✅ MongoDB Connection
+   ✅ MongoDB Connection (FIXED)
 ========================= */
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => console.error('MongoDB error:', err.message));
+const MONGODB_URI = process.env.MONGODB_URI;
+
+async function connectMongo() {
+  try {
+    if (!MONGODB_URI) {
+      console.error('❌ MONGODB_URI missing in environment');
+      return;
+    }
+
+    await mongoose.connect(MONGODB_URI, {
+      dbName: 'filmi-bharat'
+    });
+
+    console.log('✅ MongoDB connected');
+  } catch (err) {
+    console.error('❌ MongoDB connection error:', err.message);
+  }
+}
+
+connectMongo();
 
 /* =========================
    Health check
