@@ -1,58 +1,71 @@
-// server.js
-const express = require('express');
-const cors = require('cors');
-const cron = require('node-cron');
-const mongoose = require('mongoose');
-require('dotenv').config();
+require("express-async-errors");
+require("dotenv").config();
+
+const express = require("express");
+const connectDB = require("./config/db");
+const cors = require("cors");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+const compression = require("compression");
+const morgan = require("morgan");
 
 const app = express();
 
-// ✅ FIX 1: Specific origin for Hostinger
-app.use(cors({
-  origin: ['https://তোমার-hostinger-url.hostingerapp.com', 'http://localhost:3000'],
-  credentials: true
-}));
+// ✅ ENV validation
+const requiredEnv = [
+  "MONGO_URI",
+  "TMDB_API_KEY",
+  "GROQ_API_KEY",
+  "GEMINI_API_KEY",
+  "YOUTUBE_API_KEY"
+];
+
+requiredEnv.forEach((key) => {
+  if (!process.env[key]) {
+    console.error(`❌ Missing ENV: ${key}`);
+    process.exit(1);
+  }
+});
+
+// DB connect
+connectDB();
+
+// Middlewares
+app.use(cors());
 app.use(express.json());
+app.use(helmet());
+app.use(compression());
+app.use(morgan("dev"));
 
-// MongoDB (unchanged - perfect)
-const MONGODB_URI = process.env.MONGODB_URI;
-async function connectMongo() {
-  try {
-    if (!MONGODB_URI) {
-      console.error('❌ MONGODB_URI missing');
-      return;
-    }
-    await mongoose.connect(MONGODB_URI, { dbName: 'filmi-bharat' });
-    console.log('✅ MongoDB connected');
-  } catch (err) {
-    console.error('❌ MongoDB error:', err.message);
-  }
-}
-connectMongo();
+app.use(
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100
+  })
+);
 
-app.get('/', (req, res) => {
-  res.json({ status: 'ok', message: 'Indian Movie AI backend running' });
+// Health check
+app.get("/", (req, res) => {
+  res.send("Filmi Bharat API is running 🚀");
 });
 
-// ✅ FIX 2: Separate route prefixes
-const homeRouter = require('./routes/home');
-const movieRouter = require('./routes/movie');
-app.use('/api/home', homeRouter);     // Changed
-app.use('/api/movie', movieRouter);   // Changed
+// Routes
+app.use("/api/movies", require("./routes/movie"));
+app.use("/api/ai-chat", require("./routes/aiChat"));
+app.use("/api/home", require("./routes/home"));
+app.use("/api/admin", require("./routes/admin"));
 
-// Cron jobs (unchanged)
-const { getTrendingMovies, getPopularWebSeries, getTopRatedMovies, getUpcomingMovies } = require('./services/tmdbService');
-cron.schedule('0 0 * * *', async () => {
-  try {
-    console.log('Cron: warming up TMDB...');
-    await Promise.all([getTrendingMovies(), getPopularWebSeries(), getTopRatedMovies(), getUpcomingMovies()]);
-    console.log('Cron: done');
-  } catch (err) {
-    console.error('Cron error:', err.message);
-  }
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error("Unhandled Error:", err.message);
+  res.status(500).json({
+    success: false,
+    message: "Internal Server Error"
+  });
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
+
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Filmi Bharat Backend Live on ${PORT}`);
 });
